@@ -2,8 +2,13 @@
 <html>
 <head>
   <meta charset="UTF-8">
+
   <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, user-scalable=no">
+        content="width=device-width,
+                 height=device-height,
+                 initial-scale=1.0,
+                 maximum-scale=1.0,
+                 user-scalable=no">
 
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
@@ -18,9 +23,9 @@
     }
 
     a-scene {
-      position: absolute !important;
-      top: 0;
-      left: 0;
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
       width: 100vw !important;
       height: 100vh !important;
     }
@@ -29,29 +34,31 @@
 
 <body>
 
-  <a-scene
-    mindar-image="imageTargetSrc: targets.mind;"
-    embedded
-    color-space="sRGB"
-    renderer="colorManagement: true, physicallyCorrectLights"
-    vr-mode-ui="enabled: false"
-    device-orientation-permission-ui="enabled: false">
+<a-scene
+  mindar-image="imageTargetSrc: ./targets.mind; autoStart: true;"
+  embedded
+  color-space="sRGB"
+  renderer="colorManagement: true"
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: false">
 
-    <a-camera
-      position="0 0 0"
-      look-controls="enabled: false">
-    </a-camera>
+  <a-camera
+    position="0 0 0"
+    look-controls="enabled: false">
+  </a-camera>
 
-    <a-entity mindar-image-target="targetIndex: 0">
+  <a-entity mindar-image-target="targetIndex: 0">
 
-      <a-box
-        position="0 0 0.3"
-        scale="0.5 0.5 0.5">
-      </a-box>
+    <a-box
+      position="0 0 0.25"
+      rotation="0 0 0"
+      scale="0.5 0.5 0.5"
+      color="red">
+    </a-box>
 
-    </a-entity>
+  </a-entity>
 
-  </a-scene>
+</a-scene>
 
 </body>
 </html>
