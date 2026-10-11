@@ -14,6 +14,93 @@
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
+  <script>
+    AFRAME.registerComponent("smooth-follow", {
+      schema: {
+        target: { type: "selector" },
+        positionSpeed: { default: 8 },
+        rotationSpeed: { default: 7 }
+      },
+
+      init: function () {
+        this.initialized = false;
+
+        this.targetPosition = new THREE.Vector3();
+        this.targetQuaternion = new THREE.Quaternion();
+        this.targetScale = new THREE.Vector3();
+      },
+
+      snap: function () {
+        const target = this.data.target;
+
+        if (!target) {
+          return;
+        }
+
+        target.object3D.updateMatrixWorld(true);
+
+        target.object3D.matrixWorld.decompose(
+          this.targetPosition,
+          this.targetQuaternion,
+          this.targetScale
+        );
+
+        this.el.object3D.position.copy(
+          this.targetPosition
+        );
+
+        this.el.object3D.quaternion.copy(
+          this.targetQuaternion
+        );
+
+        this.initialized = true;
+      },
+
+      tick: function (time, delta) {
+        const target = this.data.target;
+
+        if (!target || !this.el.object3D.visible) {
+          return;
+        }
+
+        target.object3D.updateMatrixWorld(true);
+
+        target.object3D.matrixWorld.decompose(
+          this.targetPosition,
+          this.targetQuaternion,
+          this.targetScale
+        );
+
+        if (!this.initialized) {
+          this.snap();
+          return;
+        }
+
+        const dt = Math.min(delta, 50) / 1000;
+
+        const positionFactor =
+          1 - Math.exp(
+            -this.data.positionSpeed * dt
+          );
+
+        const rotationFactor =
+          1 - Math.exp(
+            -this.data.rotationSpeed * dt
+          );
+
+        this.el.object3D.position.lerp(
+          this.targetPosition,
+          positionFactor
+        );
+
+        this.el.object3D.quaternion.slerp(
+          this.targetQuaternion,
+          rotationFactor
+        );
+      }
+    });
+  </script>
+
   <style>
     html,
     body {
@@ -109,6 +196,7 @@
   </style>
 </head>
 
+
 <body>
 
   <div id="ui">
@@ -137,8 +225,8 @@
       imageTargetSrc: ./targets.mind;
       autoStart: true;
       filterMinCF: 0.0005;
-      filterBeta: 300;
-      warmupTolerance: 10;
+      filterBeta: 200;
+      warmupTolerance: 8;
       missTolerance: 10;
     "
 
@@ -152,8 +240,10 @@
     "
 
     vr-mode-ui="enabled: false"
+
     device-orientation-permission-ui="enabled: false"
   >
+
 
     <a-assets>
 
@@ -178,52 +268,65 @@
     </a-camera>
 
 
-    <!-- Tracking reference -->
-
     <a-entity
       id="imageTarget"
       mindar-image-target="targetIndex: 0">
-
-      <a-entity
-        id="lockReference"
-        position="0 0 0.15">
-      </a-entity>
-
     </a-entity>
 
 
-    <!-- Locked AR content -->
-
     <a-entity
-      id="lockedRoot"
-      visible="false">
+      id="smoothRoot"
+
+      smooth-follow="
+        target: #imageTarget;
+        positionSpeed: 8;
+        rotationSpeed: 7;
+      "
+
+      visible="false"
+    >
+
 
       <a-gltf-model
         id="closedChest"
+
         src="#closedChestModel"
-        position="0 0 0"
+
+        position="0 0 0.15"
+
         rotation="0 0 0"
+
         scale="1 1 1">
       </a-gltf-model>
 
 
       <a-gltf-model
         id="openChest"
+
         src="#openChestModel"
-        position="0 0 0"
+
+        position="0 0 0.15"
+
         rotation="0 0 0"
+
         scale="1 1 1"
+
         visible="false">
       </a-gltf-model>
 
 
       <a-sphere
         id="reward"
-        position="0 0.75 0"
+
+        position="0 0.75 0.15"
+
         radius="0.14"
+
         color="#FFD700"
+
         visible="false">
       </a-sphere>
+
 
     </a-entity>
 
@@ -235,11 +338,8 @@
     const imageTarget =
       document.querySelector("#imageTarget");
 
-    const lockReference =
-      document.querySelector("#lockReference");
-
-    const lockedRoot =
-      document.querySelector("#lockedRoot");
+    const smoothRoot =
+      document.querySelector("#smoothRoot");
 
     const closedChest =
       document.querySelector("#closedChest");
@@ -261,161 +361,34 @@
 
 
     const HOLD_TIME = 1000;
-    const LOCK_DELAY = 700;
+    const LOST_DELAY = 400;
 
 
     let holdTimer = null;
-    let lockTimer = null;
+    let lostTimer = null;
 
-    let targetVisible = false;
-    let lockStarted = false;
-    let locked = false;
     let opened = false;
-
-
-    function lockPosition() {
-
-      if (locked || !targetVisible) {
-        lockStarted = false;
-        return;
-      }
-
-
-      const THREE = AFRAME.THREE;
-
-      const worldPosition =
-        new THREE.Vector3();
-
-      const worldQuaternion =
-        new THREE.Quaternion();
-
-      const worldScale =
-        new THREE.Vector3();
-
-
-      lockReference.object3D.updateMatrixWorld(true);
-
-
-      lockReference.object3D.getWorldPosition(
-        worldPosition
-      );
-
-      lockReference.object3D.getWorldQuaternion(
-        worldQuaternion
-      );
-
-      lockReference.object3D.getWorldScale(
-        worldScale
-      );
-
-
-      lockedRoot.object3D.position.copy(
-        worldPosition
-      );
-
-      lockedRoot.object3D.quaternion.copy(
-        worldQuaternion
-      );
-
-      lockedRoot.object3D.scale.copy(
-        worldScale
-      );
-
-
-      lockedRoot.object3D.updateMatrixWorld(true);
-
-
-      lockedRoot.setAttribute(
-        "visible",
-        true
-      );
-
-
-      locked = true;
-
-
-      holdButton.style.display =
-        "block";
-
-
-      status.textContent =
-        "Hold the button for 1 second";
-
-    }
-
-
-    function startLock() {
-
-      if (locked || lockStarted) {
-        return;
-      }
-
-
-      lockStarted = true;
-
-
-      status.textContent =
-        "Locking position...";
-
-
-      lockTimer =
-        setTimeout(
-          lockPosition,
-          LOCK_DELAY
-        );
-
-    }
-
-
-    function cancelLock() {
-
-      if (locked) {
-        return;
-      }
-
-
-      if (lockTimer !== null) {
-
-        clearTimeout(lockTimer);
-
-        lockTimer = null;
-
-      }
-
-
-      lockStarted = false;
-
-
-      status.textContent =
-        "Point the camera at the target";
-
-    }
+    let targetVisible = false;
 
 
     function startHold(event) {
 
-      if (!locked || opened) {
+      if (opened || !targetVisible) {
         return;
       }
 
-
       event.preventDefault();
 
-
       clearTimeout(holdTimer);
-
 
       status.textContent =
         "Keep holding...";
 
-
       progress.style.transition =
         "width 1s linear";
 
-
       progress.style.width =
         "100%";
-
 
       holdTimer =
         setTimeout(
@@ -432,7 +405,6 @@
         return;
       }
 
-
       if (holdTimer !== null) {
 
         clearTimeout(holdTimer);
@@ -441,16 +413,13 @@
 
       }
 
-
       progress.style.transition =
         "none";
-
 
       progress.style.width =
         "0%";
 
-
-      if (locked) {
+      if (targetVisible) {
 
         status.textContent =
           "Hold the button for 1 second";
@@ -466,28 +435,23 @@
 
       holdTimer = null;
 
-
       closedChest.setAttribute(
         "visible",
         false
       );
-
 
       openChest.setAttribute(
         "visible",
         true
       );
 
-
       reward.setAttribute(
         "visible",
         true
       );
 
-
       holdButton.style.display =
         "none";
-
 
       status.textContent =
         "Reward collected!";
@@ -501,10 +465,44 @@
 
         targetVisible = true;
 
+        if (lostTimer !== null) {
 
-        if (!locked) {
+          clearTimeout(lostTimer);
 
-          startLock();
+          lostTimer = null;
+
+        }
+
+
+        const smoothing =
+          smoothRoot.components["smooth-follow"];
+
+
+        if (smoothing) {
+
+          smoothing.snap();
+
+        }
+
+
+        smoothRoot.setAttribute(
+          "visible",
+          true
+        );
+
+
+        if (!opened) {
+
+          holdButton.style.display =
+            "block";
+
+          status.textContent =
+            "Hold the button for 1 second";
+
+        } else {
+
+          status.textContent =
+            "Reward collected!";
 
         }
 
@@ -518,12 +516,40 @@
 
         targetVisible = false;
 
+        cancelHold();
 
-        if (!locked) {
 
-          cancelLock();
+        if (lostTimer !== null) {
+
+          clearTimeout(lostTimer);
 
         }
+
+
+        lostTimer =
+          setTimeout(
+            function () {
+
+              smoothRoot.setAttribute(
+                "visible",
+                false
+              );
+
+
+              if (!opened) {
+
+                holdButton.style.display =
+                  "none";
+
+                status.textContent =
+                  "Point the camera at the target";
+
+              }
+
+            },
+
+            LOST_DELAY
+          );
 
       }
     );
