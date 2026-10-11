@@ -14,93 +14,6 @@
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
-  <script>
-    AFRAME.registerComponent("smooth-follow", {
-      schema: {
-        target: { type: "selector" },
-        positionSpeed: { default: 8 },
-        rotationSpeed: { default: 7 }
-      },
-
-      init: function () {
-        this.initialized = false;
-
-        this.targetPosition = new THREE.Vector3();
-        this.targetQuaternion = new THREE.Quaternion();
-        this.targetScale = new THREE.Vector3();
-      },
-
-      snap: function () {
-        const target = this.data.target;
-
-        if (!target) {
-          return;
-        }
-
-        target.object3D.updateMatrixWorld(true);
-
-        target.object3D.matrixWorld.decompose(
-          this.targetPosition,
-          this.targetQuaternion,
-          this.targetScale
-        );
-
-        this.el.object3D.position.copy(
-          this.targetPosition
-        );
-
-        this.el.object3D.quaternion.copy(
-          this.targetQuaternion
-        );
-
-        this.initialized = true;
-      },
-
-      tick: function (time, delta) {
-        const target = this.data.target;
-
-        if (!target || !this.el.object3D.visible) {
-          return;
-        }
-
-        target.object3D.updateMatrixWorld(true);
-
-        target.object3D.matrixWorld.decompose(
-          this.targetPosition,
-          this.targetQuaternion,
-          this.targetScale
-        );
-
-        if (!this.initialized) {
-          this.snap();
-          return;
-        }
-
-        const dt = Math.min(delta, 50) / 1000;
-
-        const positionFactor =
-          1 - Math.exp(
-            -this.data.positionSpeed * dt
-          );
-
-        const rotationFactor =
-          1 - Math.exp(
-            -this.data.rotationSpeed * dt
-          );
-
-        this.el.object3D.position.lerp(
-          this.targetPosition,
-          positionFactor
-        );
-
-        this.el.object3D.quaternion.slerp(
-          this.targetQuaternion,
-          rotationFactor
-        );
-      }
-    });
-  </script>
-
   <style>
     html,
     body {
@@ -196,7 +109,6 @@
   </style>
 </head>
 
-
 <body>
 
   <div id="ui">
@@ -219,14 +131,12 @@
 
 
   <a-scene
-    id="scene"
-
     mindar-image="
       imageTargetSrc: ./targets.mind;
       autoStart: true;
       filterMinCF: 0.0005;
-      filterBeta: 200;
-      warmupTolerance: 8;
+      filterBeta: 300;
+      warmupTolerance: 10;
       missTolerance: 10;
     "
 
@@ -243,7 +153,6 @@
 
     device-orientation-permission-ui="enabled: false"
   >
-
 
     <a-assets>
 
@@ -271,20 +180,6 @@
     <a-entity
       id="imageTarget"
       mindar-image-target="targetIndex: 0">
-    </a-entity>
-
-
-    <a-entity
-      id="smoothRoot"
-
-      smooth-follow="
-        target: #imageTarget;
-        positionSpeed: 8;
-        rotationSpeed: 7;
-      "
-
-      visible="false"
-    >
 
 
       <a-gltf-model
@@ -338,9 +233,6 @@
     const imageTarget =
       document.querySelector("#imageTarget");
 
-    const smoothRoot =
-      document.querySelector("#smoothRoot");
-
     const closedChest =
       document.querySelector("#closedChest");
 
@@ -361,13 +253,12 @@
 
 
     const HOLD_TIME = 1000;
-    const LOST_DELAY = 400;
 
 
     let holdTimer = null;
-    let lostTimer = null;
 
     let opened = false;
+
     let targetVisible = false;
 
 
@@ -405,13 +296,9 @@
         return;
       }
 
-      if (holdTimer !== null) {
+      clearTimeout(holdTimer);
 
-        clearTimeout(holdTimer);
-
-        holdTimer = null;
-
-      }
+      holdTimer = null;
 
       progress.style.transition =
         "none";
@@ -465,32 +352,6 @@
 
         targetVisible = true;
 
-        if (lostTimer !== null) {
-
-          clearTimeout(lostTimer);
-
-          lostTimer = null;
-
-        }
-
-
-        const smoothing =
-          smoothRoot.components["smooth-follow"];
-
-
-        if (smoothing) {
-
-          smoothing.snap();
-
-        }
-
-
-        smoothRoot.setAttribute(
-          "visible",
-          true
-        );
-
-
         if (!opened) {
 
           holdButton.style.display =
@@ -518,38 +379,15 @@
 
         cancelHold();
 
+        if (!opened) {
 
-        if (lostTimer !== null) {
+          holdButton.style.display =
+            "none";
 
-          clearTimeout(lostTimer);
+          status.textContent =
+            "Point the camera at the target";
 
         }
-
-
-        lostTimer =
-          setTimeout(
-            function () {
-
-              smoothRoot.setAttribute(
-                "visible",
-                false
-              );
-
-
-              if (!opened) {
-
-                holdButton.style.display =
-                  "none";
-
-                status.textContent =
-                  "Point the camera at the target";
-
-              }
-
-            },
-
-            LOST_DELAY
-          );
 
       }
     );
@@ -560,24 +398,20 @@
       startHold
     );
 
-
     holdButton.addEventListener(
       "pointerup",
       cancelHold
     );
-
 
     holdButton.addEventListener(
       "pointercancel",
       cancelHold
     );
 
-
     holdButton.addEventListener(
       "pointerleave",
       cancelHold
     );
-
 
     holdButton.addEventListener(
       "contextmenu",
