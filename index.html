@@ -131,6 +131,8 @@
 
 
   <a-scene
+    id="scene"
+
     mindar-image="
       imageTargetSrc: ./targets.mind;
       autoStart: true;
@@ -139,12 +141,16 @@
       warmupTolerance: 10;
       missTolerance: 10;
     "
+
     embedded
+
     color-space="sRGB"
+
     renderer="
       colorManagement: true;
       antialias: false;
     "
+
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false"
   >
@@ -172,15 +178,30 @@
     </a-camera>
 
 
+    <!-- Tracking reference -->
+
     <a-entity
       id="imageTarget"
       mindar-image-target="targetIndex: 0">
 
+      <a-entity
+        id="lockReference"
+        position="0 0 0.15">
+      </a-entity>
+
+    </a-entity>
+
+
+    <!-- Locked AR content -->
+
+    <a-entity
+      id="lockedRoot"
+      visible="false">
 
       <a-gltf-model
         id="closedChest"
         src="#closedChestModel"
-        position="0 0 0.15"
+        position="0 0 0"
         rotation="0 0 0"
         scale="1 1 1">
       </a-gltf-model>
@@ -189,7 +210,7 @@
       <a-gltf-model
         id="openChest"
         src="#openChestModel"
-        position="0 0 0.15"
+        position="0 0 0"
         rotation="0 0 0"
         scale="1 1 1"
         visible="false">
@@ -198,12 +219,11 @@
 
       <a-sphere
         id="reward"
-        position="0 0.75 0.15"
+        position="0 0.75 0"
         radius="0.14"
         color="#FFD700"
         visible="false">
       </a-sphere>
-
 
     </a-entity>
 
@@ -214,6 +234,12 @@
 
     const imageTarget =
       document.querySelector("#imageTarget");
+
+    const lockReference =
+      document.querySelector("#lockReference");
+
+    const lockedRoot =
+      document.querySelector("#lockedRoot");
 
     const closedChest =
       document.querySelector("#closedChest");
@@ -235,31 +261,161 @@
 
 
     const HOLD_TIME = 1000;
+    const LOCK_DELAY = 700;
 
 
     let holdTimer = null;
-    let opened = false;
+    let lockTimer = null;
+
     let targetVisible = false;
+    let lockStarted = false;
+    let locked = false;
+    let opened = false;
+
+
+    function lockPosition() {
+
+      if (locked || !targetVisible) {
+        lockStarted = false;
+        return;
+      }
+
+
+      const THREE = AFRAME.THREE;
+
+      const worldPosition =
+        new THREE.Vector3();
+
+      const worldQuaternion =
+        new THREE.Quaternion();
+
+      const worldScale =
+        new THREE.Vector3();
+
+
+      lockReference.object3D.updateMatrixWorld(true);
+
+
+      lockReference.object3D.getWorldPosition(
+        worldPosition
+      );
+
+      lockReference.object3D.getWorldQuaternion(
+        worldQuaternion
+      );
+
+      lockReference.object3D.getWorldScale(
+        worldScale
+      );
+
+
+      lockedRoot.object3D.position.copy(
+        worldPosition
+      );
+
+      lockedRoot.object3D.quaternion.copy(
+        worldQuaternion
+      );
+
+      lockedRoot.object3D.scale.copy(
+        worldScale
+      );
+
+
+      lockedRoot.object3D.updateMatrixWorld(true);
+
+
+      lockedRoot.setAttribute(
+        "visible",
+        true
+      );
+
+
+      locked = true;
+
+
+      holdButton.style.display =
+        "block";
+
+
+      status.textContent =
+        "Hold the button for 1 second";
+
+    }
+
+
+    function startLock() {
+
+      if (locked || lockStarted) {
+        return;
+      }
+
+
+      lockStarted = true;
+
+
+      status.textContent =
+        "Locking position...";
+
+
+      lockTimer =
+        setTimeout(
+          lockPosition,
+          LOCK_DELAY
+        );
+
+    }
+
+
+    function cancelLock() {
+
+      if (locked) {
+        return;
+      }
+
+
+      if (lockTimer !== null) {
+
+        clearTimeout(lockTimer);
+
+        lockTimer = null;
+
+      }
+
+
+      lockStarted = false;
+
+
+      status.textContent =
+        "Point the camera at the target";
+
+    }
 
 
     function startHold(event) {
 
-      if (opened || !targetVisible) {
+      if (!locked || opened) {
         return;
       }
 
+
       event.preventDefault();
 
+
       clearTimeout(holdTimer);
+
 
       status.textContent =
         "Keep holding...";
 
+
       progress.style.transition =
         "width 1s linear";
 
+
       progress.style.width =
         "100%";
+
 
       holdTimer =
         setTimeout(
@@ -276,17 +432,25 @@
         return;
       }
 
-      clearTimeout(holdTimer);
 
-      holdTimer = null;
+      if (holdTimer !== null) {
+
+        clearTimeout(holdTimer);
+
+        holdTimer = null;
+
+      }
+
 
       progress.style.transition =
         "none";
 
+
       progress.style.width =
         "0%";
 
-      if (targetVisible) {
+
+      if (locked) {
 
         status.textContent =
           "Hold the button for 1 second";
@@ -302,23 +466,28 @@
 
       holdTimer = null;
 
+
       closedChest.setAttribute(
         "visible",
         false
       );
+
 
       openChest.setAttribute(
         "visible",
         true
       );
 
+
       reward.setAttribute(
         "visible",
         true
       );
 
+
       holdButton.style.display =
         "none";
+
 
       status.textContent =
         "Reward collected!";
@@ -332,18 +501,10 @@
 
         targetVisible = true;
 
-        if (!opened) {
 
-          holdButton.style.display =
-            "block";
+        if (!locked) {
 
-          status.textContent =
-            "Hold the button for 1 second";
-
-        } else {
-
-          status.textContent =
-            "Reward collected!";
+          startLock();
 
         }
 
@@ -357,15 +518,10 @@
 
         targetVisible = false;
 
-        cancelHold();
 
-        if (!opened) {
+        if (!locked) {
 
-          holdButton.style.display =
-            "none";
-
-          status.textContent =
-            "Point the camera at the target";
+          cancelLock();
 
         }
 
@@ -378,20 +534,24 @@
       startHold
     );
 
+
     holdButton.addEventListener(
       "pointerup",
       cancelHold
     );
+
 
     holdButton.addEventListener(
       "pointercancel",
       cancelHold
     );
 
+
     holdButton.addEventListener(
       "pointerleave",
       cancelHold
     );
+
 
     holdButton.addEventListener(
       "contextmenu",
