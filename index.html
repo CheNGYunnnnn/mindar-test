@@ -2,9 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
+
   <meta
     name="viewport"
     content="width=device-width,
@@ -124,7 +122,7 @@
       <div id="progress"></div>
 
       <span id="buttonText">
-        HOLD TO COLLECT
+        HOLD TO OPEN
       </span>
 
     </button>
@@ -150,8 +148,14 @@
     <a-assets>
 
       <a-asset-item
-        id="chestModel"
-        src="https://polyfork.dev/cdn/treasure-chest-58da92.glb"
+        id="closedChestModel"
+        src="https://cdn.3dassets.dev/assets/19941/v1/model.glb"
+        crossorigin="anonymous">
+      </a-asset-item>
+
+      <a-asset-item
+        id="openChestModel"
+        src="https://cdn.3dassets.dev/assets/19950/v1/model.glb"
         crossorigin="anonymous">
       </a-asset-item>
 
@@ -170,15 +174,31 @@
 
 
       <a-gltf-model
-        id="targetObject"
-        src="#chestModel"
-
+        id="closedChest"
+        src="#closedChestModel"
         position="0 0 0.15"
-
         rotation="0 0 0"
-
         scale="1 1 1">
       </a-gltf-model>
+
+
+      <a-gltf-model
+        id="openChest"
+        src="#openChestModel"
+        position="0 0 0.15"
+        rotation="0 0 0"
+        scale="1 1 1"
+        visible="false">
+      </a-gltf-model>
+
+
+      <a-sphere
+        id="reward"
+        position="0 0.75 0.15"
+        radius="0.14"
+        color="#FFD700"
+        visible="false">
+      </a-sphere>
 
 
     </a-entity>
@@ -191,8 +211,14 @@
     const imageTarget =
       document.querySelector("#imageTarget");
 
-    const targetObject =
-      document.querySelector("#targetObject");
+    const closedChest =
+      document.querySelector("#closedChest");
+
+    const openChest =
+      document.querySelector("#openChest");
+
+    const reward =
+      document.querySelector("#reward");
 
     const holdButton =
       document.querySelector("#holdButton");
@@ -208,16 +234,13 @@
 
 
     let holdTimer = null;
-
-    let collected = false;
-
+    let opened = false;
     let targetVisible = false;
-
 
 
     function startHold(event) {
 
-      if (collected || !targetVisible) {
+      if (opened || !targetVisible) {
         return;
       }
 
@@ -236,17 +259,16 @@
 
       holdTimer =
         setTimeout(
-          completeHold,
+          openChestAction,
           HOLD_TIME
         );
 
     }
 
 
-
     function cancelHold() {
 
-      if (collected) {
+      if (opened) {
         return;
       }
 
@@ -270,26 +292,34 @@
     }
 
 
+    function openChestAction() {
 
-    function completeHold() {
-
-      collected = true;
+      opened = true;
 
       holdTimer = null;
 
-      targetObject.setAttribute(
+      closedChest.setAttribute(
         "visible",
         false
+      );
+
+      openChest.setAttribute(
+        "visible",
+        true
+      );
+
+      reward.setAttribute(
+        "visible",
+        true
       );
 
       holdButton.style.display =
         "none";
 
       status.textContent =
-        "Collected!";
+        "Reward collected!";
 
     }
-
 
 
     imageTarget.addEventListener(
@@ -298,7 +328,7 @@
 
         targetVisible = true;
 
-        if (!collected) {
+        if (!opened) {
 
           holdButton.style.display =
             "block";
@@ -306,11 +336,15 @@
           status.textContent =
             "Hold the button for 1 second";
 
+        } else {
+
+          status.textContent =
+            "Reward collected!";
+
         }
 
       }
     );
-
 
 
     imageTarget.addEventListener(
@@ -321,7 +355,7 @@
 
         cancelHold();
 
-        if (!collected) {
+        if (!opened) {
 
           holdButton.style.display =
             "none";
@@ -333,7 +367,6 @@
 
       }
     );
-
 
 
     holdButton.addEventListener(
