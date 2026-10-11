@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8">
 
@@ -9,129 +10,264 @@
                  maximum-scale=1.0,
                  user-scalable=no">
 
+  <!-- A-Frame -->
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+
+  <!-- MindAR -->
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
   <style>
-    html, body {
+
+    html,
+    body {
       margin: 0;
       padding: 0;
+
       width: 100%;
       height: 100%;
+
       overflow: hidden;
     }
 
+
     a-scene {
+
       position: fixed !important;
+
       top: 0;
       left: 0;
+
       width: 100vw !important;
       height: 100vh !important;
+
     }
 
+
+    /* 下方提示 */
+
     #message {
+
       position: fixed;
+
       bottom: 40px;
       left: 50%;
+
       transform: translateX(-50%);
-      background: rgba(0,0,0,0.75);
+
+      background: rgba(0, 0, 0, 0.75);
+
       color: white;
+
       padding: 12px 20px;
+
       border-radius: 10px;
+
       font-size: 18px;
+
       z-index: 9999;
+
       display: none;
+
+      white-space: nowrap;
+
     }
+
   </style>
+
 </head>
+
 
 <body>
 
-<div id="message">获得成功！</div>
+
+<!-- 提示文字 -->
+
+<div id="message">
+  点击成功！
+</div>
+
+
+
+<!-- AR场景 -->
 
 <a-scene
-  mindar-image="imageTargetSrc: ./targets.mind;"
+
+  mindar-image="
+    imageTargetSrc: ./targets.mind;
+    autoStart: true;
+  "
+
   embedded
+
   color-space="sRGB"
-  renderer="colorManagement: true"
+
+  renderer="
+    colorManagement: true;
+    antialias: true;
+  "
+
   vr-mode-ui="enabled: false"
-  device-orientation-permission-ui="enabled: false">
+
+  device-orientation-permission-ui="enabled: false"
+
+>
+
+
+  <!-- 摄像机 -->
 
   <a-camera
+
     position="0 0 0"
+
     look-controls="enabled: false"
-    cursor="rayOrigin: mouse; fuse: false"
-    raycaster="objects: .clickable">
+
+    cursor="
+      fuse: false;
+      rayOrigin: mouse;
+    "
+
+    raycaster="
+      objects: .clickable;
+    "
+
+  >
+
   </a-camera>
 
-  <a-entity mindar-image-target="targetIndex: 0">
+
+
+  <!-- MindAR识别目标 -->
+
+  <a-entity
+    id="imageTarget"
+    mindar-image-target="targetIndex: 0"
+  >
+
+
+    <!-- 点击测试物体 -->
 
     <a-box
+
       id="targetObject"
+
       class="clickable"
+
       position="0 0 0.3"
+
       width="0.7"
+
       height="0.7"
+
       depth="0.7"
-      color="#8B4513">
+
+      color="#8B4513"
+
+    >
+
     </a-box>
+
 
   </a-entity>
 
+
 </a-scene>
+
+
+
 
 <script>
 
-const object = document.querySelector("#targetObject");
-const message = document.querySelector("#message");
 
-let holdTimer = null;
-let disappeared = false;
+// ============================
+// 获取对象
+// ============================
 
-function startHold() {
+const targetObject =
+  document.querySelector("#targetObject");
 
-  if (disappeared) return;
+const imageTarget =
+  document.querySelector("#imageTarget");
 
-  console.log("开始长按");
-
-  object.setAttribute("color", "#FFD700");
-
-  holdTimer = setTimeout(() => {
-
-    disappeared = true;
-
-    object.setAttribute("visible", false);
-
-    message.style.display = "block";
-
-    setTimeout(() => {
-      message.style.display = "none";
-    }, 2000);
-
-  }, 1000);
-}
+const message =
+  document.querySelector("#message");
 
 
-function cancelHold() {
 
-  if (holdTimer) {
-    clearTimeout(holdTimer);
-    holdTimer = null;
+// ============================
+// Marker识别成功
+// ============================
+
+imageTarget.addEventListener(
+  "targetFound",
+  function () {
+
+    console.log("Marker识别成功");
+
   }
+);
 
-  if (!disappeared) {
-    object.setAttribute("color", "#8B4513");
+
+
+// ============================
+// Marker丢失
+// ============================
+
+imageTarget.addEventListener(
+  "targetLost",
+  function () {
+
+    console.log("Marker丢失");
+
   }
-}
+);
 
 
-object.addEventListener("mousedown", startHold);
 
-object.addEventListener("mouseup", cancelHold);
+// ============================
+// 点击方块
+// ============================
 
-object.addEventListener("mouseleave", cancelHold);
+targetObject.addEventListener(
+  "click",
+  function () {
+
+    console.log("点击方块成功");
+
+
+    // 方块消失
+
+    targetObject.setAttribute(
+      "visible",
+      false
+    );
+
+
+    // 显示提示
+
+    message.style.display =
+      "block";
+
+
+    // 两秒后提示消失
+
+    setTimeout(
+      function () {
+
+        message.style.display =
+          "none";
+
+      },
+
+      2000
+    );
+
+  }
+);
+
 
 </script>
 
+
 </body>
+
 </html>
