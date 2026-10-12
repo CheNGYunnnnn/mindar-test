@@ -46,6 +46,20 @@
       pointer-events: none;
     }
 
+    #stampCount {
+      margin-bottom: 10px;
+      padding: 8px 14px;
+
+      background: rgba(255, 255, 255, 0.9);
+      color: #222;
+
+      border-radius: 10px;
+
+      font-family: Arial, sans-serif;
+      font-size: 15px;
+      font-weight: bold;
+    }
+
     #status {
       margin-bottom: 15px;
       padding: 10px 16px;
@@ -106,12 +120,45 @@
       position: relative;
       z-index: 2;
     }
+
+    #stampMessage {
+      position: fixed;
+
+      top: 50%;
+      left: 50%;
+
+      transform: translate(-50%, -50%);
+
+      z-index: 10000;
+
+      padding: 20px 30px;
+
+      background: rgba(0, 0, 0, 0.85);
+      color: white;
+
+      border-radius: 16px;
+
+      font-family: Arial, sans-serif;
+
+      font-size: 28px;
+      font-weight: bold;
+
+      text-align: center;
+
+      display: none;
+
+      pointer-events: none;
+    }
   </style>
 </head>
 
 <body>
 
   <div id="ui">
+
+    <div id="stampCount">
+      STAMPS: 0 / 4
+    </div>
 
     <div id="status">
       Point the camera at the target
@@ -127,6 +174,11 @@
 
     </button>
 
+  </div>
+
+
+  <div id="stampMessage">
+    STAMP GET!
   </div>
 
 
@@ -179,49 +231,35 @@
 
     <a-entity
       id="imageTarget"
-      mindar-image-target="targetIndex: 0">
-
+      mindar-image-target="targetIndex: 0"
+    >
 
       <a-gltf-model
         id="closedChest"
-
         src="#closedChestModel"
-
         position="0 0 0.15"
-
         rotation="0 0 0"
-
         scale="1 1 1">
       </a-gltf-model>
 
 
       <a-gltf-model
         id="openChest"
-
         src="#openChestModel"
-
         position="0 0 0.15"
-
         rotation="0 0 0"
-
         scale="1 1 1"
-
         visible="false">
       </a-gltf-model>
 
 
       <a-sphere
         id="reward"
-
         position="0 0.75 0.15"
-
         radius="0.14"
-
         color="#FFD700"
-
         visible="false">
       </a-sphere>
-
 
     </a-entity>
 
@@ -229,6 +267,16 @@
 
 
   <script>
+
+    const STAMP_KEY = "stamp_hmd";
+
+    const ALL_STAMPS = [
+      "stamp_hmd",
+      "stamp_cave",
+      "stamp_touch",
+      "stamp_other"
+    ];
+
 
     const imageTarget =
       document.querySelector("#imageTarget");
@@ -251,15 +299,77 @@
     const status =
       document.querySelector("#status");
 
+    const stampCount =
+      document.querySelector("#stampCount");
+
+    const stampMessage =
+      document.querySelector("#stampMessage");
+
 
     const HOLD_TIME = 1000;
 
 
     let holdTimer = null;
 
-    let opened = false;
-
     let targetVisible = false;
+
+    let opened =
+      localStorage.getItem(STAMP_KEY) === "true";
+
+
+    function getStampCount() {
+
+      let count = 0;
+
+      ALL_STAMPS.forEach(function(key) {
+
+        if (localStorage.getItem(key) === "true") {
+
+          count++;
+
+        }
+
+      });
+
+      return count;
+
+    }
+
+
+    function updateStampCount() {
+
+      const count = getStampCount();
+
+      stampCount.textContent =
+        "STAMPS: " +
+        count +
+        " / " +
+        ALL_STAMPS.length;
+
+    }
+
+
+    function showCollectedState() {
+
+      closedChest.setAttribute(
+        "visible",
+        false
+      );
+
+      openChest.setAttribute(
+        "visible",
+        true
+      );
+
+      reward.setAttribute(
+        "visible",
+        true
+      );
+
+      holdButton.style.display =
+        "none";
+
+    }
 
 
     function startHold(event) {
@@ -322,48 +432,61 @@
 
       holdTimer = null;
 
-      closedChest.setAttribute(
-        "visible",
-        false
+      localStorage.setItem(
+        STAMP_KEY,
+        "true"
       );
 
-      openChest.setAttribute(
-        "visible",
-        true
-      );
+      showCollectedState();
 
-      reward.setAttribute(
-        "visible",
-        true
-      );
-
-      holdButton.style.display =
+      progress.style.transition =
         "none";
 
+      progress.style.width =
+        "0%";
+
       status.textContent =
-        "Reward collected!";
+        "Stamp collected!";
+
+      stampMessage.style.display =
+        "block";
+
+      updateStampCount();
+
+
+      setTimeout(
+        function() {
+
+          stampMessage.style.display =
+            "none";
+
+        },
+        2000
+      );
 
     }
 
 
     imageTarget.addEventListener(
       "targetFound",
-      function () {
+      function() {
 
         targetVisible = true;
 
-        if (!opened) {
+        if (opened) {
+
+          showCollectedState();
+
+          status.textContent =
+            "Stamp already collected";
+
+        } else {
 
           holdButton.style.display =
             "block";
 
           status.textContent =
             "Hold the button for 1 second";
-
-        } else {
-
-          status.textContent =
-            "Reward collected!";
 
         }
 
@@ -373,7 +496,7 @@
 
     imageTarget.addEventListener(
       "targetLost",
-      function () {
+      function() {
 
         targetVisible = false;
 
@@ -398,29 +521,43 @@
       startHold
     );
 
+
     holdButton.addEventListener(
       "pointerup",
       cancelHold
     );
+
 
     holdButton.addEventListener(
       "pointercancel",
       cancelHold
     );
 
+
     holdButton.addEventListener(
       "pointerleave",
       cancelHold
     );
 
+
     holdButton.addEventListener(
       "contextmenu",
-      function (event) {
+      function(event) {
 
         event.preventDefault();
 
       }
     );
+
+
+    if (opened) {
+
+      showCollectedState();
+
+    }
+
+
+    updateStampCount();
 
   </script>
 
