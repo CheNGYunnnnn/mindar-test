@@ -184,7 +184,7 @@
 
   <a-scene
     mindar-image="
-      imageTargetSrc: ./targets.mind;
+      imageTargetSrc: ./hmdvr.mind;
       autoStart: true;
       filterMinCF: 0.0005;
       filterBeta: 300;
@@ -207,7 +207,11 @@
   >
 
     <a-assets>
-
+      <a-asset-item
+        id="hmdModel"
+        src="./hmdvr.glb">
+      </a-asset-item>
+      
       <a-asset-item
         id="closedChestModel"
         src="https://cdn.3dassets.dev/assets/19941/v1/model.glb"
@@ -251,15 +255,15 @@
         scale="1 1 1"
         visible="false">
       </a-gltf-model>
-
-
-      <a-sphere
+      
+      <a-gltf-model
         id="reward"
+        src="#hmdModel"
         position="0 0.75 0.15"
-        radius="0.14"
-        color="#FFD700"
+        rotation="0 0 0"
+        scale="0.5 0.5 0.5"
         visible="false">
-      </a-sphere>
+      </a-gltf-model>
 
     </a-entity>
 
