@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>HMD WebAR Stamp Rally</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: Arial, sans-serif; }
+    a-scene { position: fixed !important; inset: 0; width: 100vw !important; height: 100vh !important; }
+    #ui { position: fixed; bottom: 28px; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; z-index: 9999; pointer-events: none; }
+    #stampCount, #status, #debugInfo { border-radius: 10px; padding: 9px 14px; text-align: center; margin-bottom: 8px; }
+    #stampCount { background: rgba(255,255,255,.9); color: #222; font-size: 15px; font-weight: bold; }
+    #status { background: rgba(0,0,0,.75); color: white; font-size: 16px; }
+    #debugInfo { background: rgba(0,0,0,.6); color: white; font-size: 12px; max-width: 88vw; overflow-wrap: anywhere; }
+    #holdButton { position: relative; width: 220px; height: 58px; border: 0; border-radius: 14px; background: #222; color: #fff; font-size: 16px; font-weight: bold; overflow: hidden; display: none; pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+    #progress { position: absolute; inset: 0; width: 0%; background: rgba(255,255,255,.3); pointer-events: none; }
+    #buttonText { position: relative; z-index: 1; }
+    #stampMessage { position: fixed; z-index: 10000; top: 50%; left: 50%; transform: translate(-50%,-50%); padding: 22px 28px; border-radius: 16px; background: rgba(0,0,0,.85); color: white; font-size: 27px; font-weight: bold; text-align: center; display: none; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <div id="stampCount">STAMPS: 0 / 4</div>
+    <div id="status">Point the camera at the target</div>
+    <div id="debugInfo">Starting AR...</div>
+    <button id="holdButton" type="button"><span id="progress"></span><span id="buttonText">HOLD TO OPEN</span></button>
+  </div>
+  <div id="stampMessage">STAMP GET!</div>
+
+  <a-scene id="scene"
+    mindar-image="imageTargetSrc: ./hmdvr.mind; autoStart: true; filterMinCF: 0.0005; filterBeta: 300; warmupTolerance: 10; missTolerance: 10;"
+    embedded color-space="sRGB"
+    renderer="colorManagement: true; antialias: false;"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false">
+
+    <a-assets timeout="15000">
+      <a-asset-item id="closedChestModel" src="./chest_closed_web.glb"></a-asset-item>
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    <a-light type="ambient" color="#ffffff" intensity="1.1"></a-light>
+    <a-light type="directional" color="#ffffff" intensity="0.85" position="-1 2 3"></a-light>
+
+    <a-entity id="imageTarget" mindar-image-target="targetIndex: 0">
+      <a-gltf-model id="closedChest" src="#closedChestModel" position="0 0 0.13" scale="1 1 1"></a-gltf-model>
+
+      <a-entity id="reward" position="0 0 0.13" visible="false">
+        <a-entity id="hmdObject" scale="0.7 0.7 0.7" visible="false"></a-entity>
+      </a-entity>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    const STAMP_KEY = "stamp_hmd";
+    const ALL_STAMPS = ["stamp_hmd", "stamp_cave", "stamp_touch", "stamp_other"];
+    const HOLD_TIME = 1000;
+
+    const scene = document.querySelector("#scene");
+    const imageTarget = document.querySelector("#imageTarget");
+    const closedChest = document.querySelector("#closedChest");
+    const reward = document.querySelector("#reward");
+    const hmdObject = document.querySelector("#hmdObject");
+    const holdButton = document.querySelector("#holdButton");
+    const progress = document.querySelector("#progress");
+    const statusText = document.querySelector("#status");
+    const debugInfo = document.querySelector("#debugInfo");
+    const stampCount = document.querySelector("#stampCount");
+    const stampMessage = document.querySelector("#stampMessage");
+
+    let holdTimer = null;
+    let targetVisible = false;
+    let opened = false;
+    let hmdLoadStarted = false;
+
+    try { opened = localStorage.getItem(STAMP_KEY) === "true"; }
+    catch (e) { console.warn("Storage read unavailable", e); }
+
+    function setDebug(message) {
+      debugInfo.textContent = message;
+      console.log(message);
+    }
+
+    function updateStampCount() {
+      let count = 0;
+      try { count = ALL_STAMPS.filter(key => localStorage.getItem(key) === "true").length; }
+      catch (e) { console.warn("Storage read unavailable", e); }
+      stampCount.textContent = `STAMPS: ${count} / ${ALL_STAMPS.length}`;
+    }
+
+    function loadHmd() {
+      if (hmdLoadStarted) return;
+      hmdLoadStarted = true;
+      setDebug("Loading HMD model...");
+      hmdObject.setAttribute("gltf-model", "url(./hmdvr_web.glb)");
+    }
+
+    hmdObject.addEventListener("model-loaded", () => {
+      hmdObject.setAttribute("visible", true);
+      setDebug("HMD model loaded");
+    });
+
+    hmdObject.addEventListener("model-error", event => {
+      console.error("HMD model failed", event.detail);
+      setDebug("HMD load error - check hmdvr_web.glb");
+    });
+
+    closedChest.addEventListener("model-error", event => {
+      console.error("Closed chest failed", event.detail);
+      setDebug("Closed chest load error");
+    });
+
+    scene.addEventListener("loaded", () => setDebug("AR scene initialized"));
+
+    function showCollectedState() {
+      closedChest.setAttribute("visible", false);
+      reward.setAttribute("visible", true);
+      holdButton.style.display = "none";
+      loadHmd();
+    }
+
+    function startHold(event) {
+      if (opened || !targetVisible || holdTimer !== null) return;
+      event.preventDefault();
+      statusText.textContent = "Keep holding...";
+      progress.style.transition = "none";
+      progress.style.width = "0%";
+      void progress.offsetWidth;
+      progress.style.transition = "width 1s linear";
+      progress.style.width = "100%";
+      holdTimer = setTimeout(collectStamp, HOLD_TIME);
+    }
+
+    function cancelHold() {
+      if (holdTimer !== null) clearTimeout(holdTimer);
+      holdTimer = null;
+      if (opened) return;
+      progress.style.transition = "none";
+      progress.style.width = "0%";
+      if (targetVisible) statusText.textContent = "Hold the button for 1 second";
+    }
+
+    function collectStamp() {
+      if (opened || !targetVisible) return;
+      holdTimer = null;
+      opened = true;
+      try { localStorage.setItem(STAMP_KEY, "true"); }
+      catch (e) { setDebug("Stamp storage unavailable"); }
+      showCollectedState();
+      updateStampCount();
+      statusText.textContent = "Stamp collected!";
+      stampMessage.style.display = "block";
+      setTimeout(() => stampMessage.style.display = "none", 2000);
+    }
+
+    imageTarget.addEventListener("targetFound", () => {
+      targetVisible = true;
+      if (opened) {
+        showCollectedState();
+        statusText.textContent = "Stamp already collected";
+      } else {
+        holdButton.style.display = "block";
+        statusText.textContent = "Hold the button for 1 second";
+      }
+      if (!hmdLoadStarted) setDebug("Marker detected");
+    });
+
+    imageTarget.addEventListener("targetLost", () => {
+      targetVisible = false;
+      cancelHold();
+      holdButton.style.display = "none";
+      statusText.textContent = opened ? "Stamp already collected" : "Point the camera at the target";
+    });
+
+    holdButton.addEventListener("pointerdown", startHold);
+    holdButton.addEventListener("pointerup", cancelHold);
+    holdButton.addEventListener("pointercancel", cancelHold);
+    holdButton.addEventListener("pointerleave", cancelHold);
+    holdButton.addEventListener("contextmenu", event => event.preventDefault());
+
+    updateStampCount();
+  </script>
+</body>
+</html>
