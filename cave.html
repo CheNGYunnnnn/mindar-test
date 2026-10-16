@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>CAVE WebAR Stamp Rally</title>
+
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+
+    a-scene {
+      position: fixed !important;
+      inset: 0;
+      width: 100vw !important;
+      height: 100vh !important;
+    }
+
+    #ui {
+      position: fixed;
+      bottom: 28px;
+      left: 0;
+      right: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      pointer-events: none;
+    }
+
+    #stampCount, #status, #debugInfo {
+      padding: 9px 14px;
+      margin-bottom: 8px;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    #stampCount {
+      background: rgba(255, 255, 255, 0.92);
+      color: #222;
+      font-size: 15px;
+      font-weight: bold;
+    }
+
+    #status {
+      background: rgba(0, 0, 0, 0.75);
+      color: white;
+      font-size: 16px;
+    }
+
+    #debugInfo {
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      font-size: 12px;
+    }
+
+    #holdButton {
+      position: relative;
+      width: 220px;
+      height: 58px;
+      border: none;
+      border-radius: 14px;
+      background: #222;
+      color: #fff;
+      font-size: 16px;
+      font-weight: bold;
+      overflow: hidden;
+      display: none;
+      pointer-events: auto;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    #progress {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 0%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.3);
+      pointer-events: none;
+    }
+
+    #buttonText {
+      position: relative;
+      z-index: 1;
+    }
+
+    #stampMessage {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10000;
+      padding: 20px 30px;
+      border-radius: 16px;
+      background: rgba(0, 0, 0, 0.85);
+      color: white;
+      font-size: 28px;
+      font-weight: bold;
+      text-align: center;
+      display: none;
+      pointer-events: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="ui">
+    <div id="stampCount">STAMPS: 0 / 4</div>
+    <div id="status">Point the camera at the CAVE target</div>
+    <div id="debugInfo">Starting AR...</div>
+    <button id="holdButton" type="button">
+      <span id="progress"></span>
+      <span id="buttonText">HOLD TO OPEN</span>
+    </button>
+  </div>
+
+  <div id="stampMessage">STAMP GET!</div>
+
+  <a-scene
+    id="scene"
+    mindar-image="imageTargetSrc: ./cave.mind; autoStart: true; filterMinCF: 0.0005; filterBeta: 300; warmupTolerance: 10; missTolerance: 10;"
+    embedded
+    color-space="sRGB"
+    renderer="colorManagement: true; antialias: false;"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false">
+
+    <a-assets timeout="15000">
+      <a-asset-item id="closedChestModel" src="./chest_closed_web.glb"></a-asset-item>
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    <a-light type="ambient" color="#ffffff" intensity="1.1"></a-light>
+    <a-light type="directional" color="#ffffff" intensity="0.85" position="-1 2 3"></a-light>
+
+    <a-entity id="imageTarget" mindar-image-target="targetIndex: 0">
+
+      <a-gltf-model
+        id="closedChest"
+        src="#closedChestModel"
+        position="0 0 0.13"
+        rotation="0 0 0"
+        scale="1 1 1">
+      </a-gltf-model>
+
+      <!-- Lightweight CAVE room preview: replace this entity with a GLB later. -->
+      <a-entity
+        id="caveReward"
+        position="0 0 0.13"
+        rotation="0 0 0"
+        scale="0.8 0.8 0.8"
+        visible="false">
+
+        <a-box position="0 -0.22 0" width="0.95" height="0.05" depth="0.75" color="#14233b"></a-box>
+        <a-box position="0 0.08 -0.37" width="0.95" height="0.56" depth="0.025" material="color: #1278b8; opacity: 0.84; transparent: true"></a-box>
+        <a-box position="-0.46 0.08 0" width="0.025" height="0.56" depth="0.74" material="color: #165994; opacity: 0.78; transparent: true"></a-box>
+        <a-box position="0.46 0.08 0" width="0.025" height="0.56" depth="0.74" material="color: #165994; opacity: 0.78; transparent: true"></a-box>
+
+        <a-plane
+          position="0 -0.19 0"
+          rotation="-90 0 0"
+          width="0.86"
+          height="0.68"
+          material="color: #32c0dc; opacity: 0.54; transparent: true; side: double">
+        </a-plane>
+
+        <a-sphere position="0 -0.045 0" radius="0.09" color="#ffcf86"></a-sphere>
+        <a-cylinder position="0 -0.135 0" radius="0.055" height="0.13" color="#e8eef5"></a-cylinder>
+
+        <a-entity
+          position="0 0.44 -0.32"
+          text="value: CAVE; align: center; color: #ffffff; width: 1.6">
+        </a-entity>
+      </a-entity>
+
+    </a-entity>
+  </a-scene>
+
+  <script>
+    const STAMP_KEY = "stamp_cave";
+    const ALL_STAMPS = ["stamp_hmd", "stamp_cave", "stamp_touch", "stamp_other"];
+    const HOLD_TIME = 1000;
+
+    const scene = document.querySelector("#scene");
+    const imageTarget = document.querySelector("#imageTarget");
+    const closedChest = document.querySelector("#closedChest");
+    const caveReward = document.querySelector("#caveReward");
+    const holdButton = document.querySelector("#holdButton");
+    const progress = document.querySelector("#progress");
+    const statusText = document.querySelector("#status");
+    const debugInfo = document.querySelector("#debugInfo");
+    const stampCount = document.querySelector("#stampCount");
+    const stampMessage = document.querySelector("#stampMessage");
+
+    let holdTimer = null;
+    let targetVisible = false;
+    let opened = false;
+
+    try {
+      opened = localStorage.getItem(STAMP_KEY) === "true";
+    } catch (error) {
+      console.warn("Unable to read stamp storage", error);
+    }
+
+    function setDebug(message) {
+      debugInfo.textContent = message;
+      console.log(message);
+    }
+
+    function updateStampCount() {
+      let count = 0;
+      try {
+        count = ALL_STAMPS.filter(key => localStorage.getItem(key) === "true").length;
+      } catch (error) {
+        console.warn("Unable to read stamp count", error);
+      }
+      stampCount.textContent = "STAMPS: " + count + " / " + ALL_STAMPS.length;
+    }
+
+    function showCollectedState() {
+      closedChest.setAttribute("visible", false);
+      caveReward.setAttribute("visible", true);
+      holdButton.style.display = "none";
+    }
+
+    function startHold(event) {
+      if (opened || !targetVisible || holdTimer !== null) return;
+      event.preventDefault();
+      statusText.textContent = "Keep holding...";
+      progress.style.transition = "none";
+      progress.style.width = "0%";
+      void progress.offsetWidth;
+      progress.style.transition = "width 1s linear";
+      progress.style.width = "100%";
+      holdTimer = setTimeout(collectStamp, HOLD_TIME);
+    }
+
+    function cancelHold() {
+      if (holdTimer !== null) clearTimeout(holdTimer);
+      holdTimer = null;
+      if (opened) return;
+      progress.style.transition = "none";
+      progress.style.width = "0%";
+      if (targetVisible) statusText.textContent = "Hold the button for 1 second";
+    }
+
+    function collectStamp() {
+      if (opened || !targetVisible) return;
+      opened = true;
+      holdTimer = null;
+      try {
+        localStorage.setItem(STAMP_KEY, "true");
+      } catch (error) {
+        setDebug("Stamp storage unavailable");
+      }
+      showCollectedState();
+      progress.style.transition = "none";
+      progress.style.width = "0%";
+      statusText.textContent = "Stamp collected!";
+      stampMessage.style.display = "block";
+      updateStampCount();
+      setTimeout(() => { stampMessage.style.display = "none"; }, 2000);
+    }
+
+    imageTarget.addEventListener("targetFound", () => {
+      targetVisible = true;
+      if (opened) {
+        showCollectedState();
+        statusText.textContent = "Stamp already collected";
+      } else {
+        holdButton.style.display = "block";
+        statusText.textContent = "Hold the button for 1 second";
+      }
+      setDebug("CAVE marker detected");
+    });
+
+    imageTarget.addEventListener("targetLost", () => {
+      targetVisible = false;
+      cancelHold();
+      holdButton.style.display = "none";
+      statusText.textContent = opened
+        ? "Stamp already collected"
+        : "Point the camera at the CAVE target";
+    });
+
+    closedChest.addEventListener("model-error", event => {
+      console.error("Chest model error", event.detail);
+      setDebug("Chest model failed to load");
+    });
+
+    scene.addEventListener("loaded", () => setDebug("AR scene initialized"));
+
+    holdButton.addEventListener("pointerdown", startHold);
+    holdButton.addEventListener("pointerup", cancelHold);
+    holdButton.addEventListener("pointercancel", cancelHold);
+    holdButton.addEventListener("pointerleave", cancelHold);
+    holdButton.addEventListener("contextmenu", event => event.preventDefault());
+
+    updateStampCount();
+  </script>
+</body>
+</html>
