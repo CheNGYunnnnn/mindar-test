@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
   <title>Touch WebAR Stamp Rally</title>
 
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
@@ -32,9 +33,11 @@
       left: 0;
       right: 0;
       z-index: 9999;
+
       display: flex;
       flex-direction: column;
       align-items: center;
+
       pointer-events: none;
     }
 
@@ -68,14 +71,19 @@
       position: relative;
       width: 220px;
       height: 58px;
+
       border: none;
       border-radius: 14px;
+
       background: #222;
       color: #fff;
+
       font-size: 16px;
       font-weight: bold;
+
       overflow: hidden;
       display: none;
+
       pointer-events: auto;
       touch-action: none;
       user-select: none;
@@ -87,8 +95,10 @@
       position: absolute;
       top: 0;
       left: 0;
+
       width: 0%;
       height: 100%;
+
       background: rgba(255,255,255,0.3);
       pointer-events: none;
     }
@@ -102,15 +112,20 @@
       position: fixed;
       top: 50%;
       left: 50%;
+
       transform: translate(-50%,-50%);
       z-index: 10000;
+
       padding: 20px 30px;
       border-radius: 16px;
+
       background: rgba(0,0,0,0.85);
       color: white;
+
       font-size: 28px;
       font-weight: bold;
       text-align: center;
+
       display: none;
       pointer-events: none;
     }
@@ -120,20 +135,33 @@
 <body>
 
   <div id="ui">
-    <div id="stampCount">STAMPS: 0 / 4</div>
-    <div id="status">Point the camera at the Touch target</div>
-    <div id="debugInfo">Starting AR...</div>
+
+    <div id="stampCount">
+      STAMPS: 0 / 3
+    </div>
+
+    <div id="status">
+      Point the camera at the Touch target
+    </div>
+
+    <div id="debugInfo">
+      Starting AR...
+    </div>
 
     <button id="holdButton" type="button">
       <span id="progress"></span>
       <span id="buttonText">HOLD TO OPEN</span>
     </button>
+
   </div>
 
-  <div id="stampMessage">STAMP GET!</div>
+  <div id="stampMessage">
+    STAMP GET!
+  </div>
 
   <a-scene
     id="scene"
+
     mindar-image="
       imageTargetSrc: ./touch.mind;
       autoStart: true;
@@ -142,17 +170,28 @@
       warmupTolerance: 10;
       missTolerance: 10;
     "
+
     embedded
+
     color-space="sRGB"
-    renderer="colorManagement: true; antialias: false;"
+
+    renderer="
+      colorManagement: true;
+      antialias: false;
+    "
+
     vr-mode-ui="enabled: false"
-    device-orientation-permission-ui="enabled: false">
+
+    device-orientation-permission-ui="enabled: false"
+  >
 
     <a-assets timeout="15000">
+
       <a-asset-item
         id="closedChestModel"
         src="./chest_closed_web.glb">
       </a-asset-item>
+
     </a-assets>
 
     <a-camera
@@ -175,9 +214,10 @@
 
     <a-entity
       id="imageTarget"
-      mindar-image-target="targetIndex: 0">
+      mindar-image-target="targetIndex: 0"
+    >
 
-      <!-- Closed chest -->
+      <!-- Closed chest model -->
       <a-gltf-model
         id="closedChest"
         src="#closedChestModel"
@@ -186,7 +226,7 @@
         scale="1 1 1">
       </a-gltf-model>
 
-      <!-- Touch GLB reward -->
+      <!-- Touch reward model -->
       <a-entity
         id="touchReward"
         position="0 0 0.13"
@@ -208,28 +248,55 @@
   </a-scene>
 
   <script>
+
+    // Stamp configuration
+
     const STAMP_KEY = "stamp_touch";
 
     const ALL_STAMPS = [
       "stamp_hmd",
       "stamp_cave",
-      "stamp_touch",
-      "stamp_other"
+      "stamp_touch"
     ];
 
     const HOLD_TIME = 1000;
 
-    const scene = document.querySelector("#scene");
-    const imageTarget = document.querySelector("#imageTarget");
-    const closedChest = document.querySelector("#closedChest");
-    const touchReward = document.querySelector("#touchReward");
-    const touchModel = document.querySelector("#touchModel");
-    const holdButton = document.querySelector("#holdButton");
-    const progress = document.querySelector("#progress");
-    const statusText = document.querySelector("#status");
-    const debugInfo = document.querySelector("#debugInfo");
-    const stampCount = document.querySelector("#stampCount");
-    const stampMessage = document.querySelector("#stampMessage");
+    // Elements
+
+    const scene =
+      document.querySelector("#scene");
+
+    const imageTarget =
+      document.querySelector("#imageTarget");
+
+    const closedChest =
+      document.querySelector("#closedChest");
+
+    const touchReward =
+      document.querySelector("#touchReward");
+
+    const touchModel =
+      document.querySelector("#touchModel");
+
+    const holdButton =
+      document.querySelector("#holdButton");
+
+    const progress =
+      document.querySelector("#progress");
+
+    const statusText =
+      document.querySelector("#status");
+
+    const debugInfo =
+      document.querySelector("#debugInfo");
+
+    const stampCount =
+      document.querySelector("#stampCount");
+
+    const stampMessage =
+      document.querySelector("#stampMessage");
+
+    // State
 
     let holdTimer = null;
     let targetVisible = false;
@@ -237,173 +304,368 @@
     let touchModelLoadStarted = false;
 
     try {
-      opened = localStorage.getItem(STAMP_KEY) === "true";
+
+      opened =
+        localStorage.getItem(STAMP_KEY) === "true";
+
     } catch (error) {
-      console.warn("Unable to read stamp storage", error);
+
+      console.warn(
+        "Unable to read stamp storage",
+        error
+      );
+
     }
+
+    // Debug information
 
     function setDebug(message) {
+
       debugInfo.textContent = message;
+
       console.log(message);
+
     }
 
+    // Update stamp count
+
     function updateStampCount() {
+
       let count = 0;
 
       try {
+
         count = ALL_STAMPS.filter(
           key => localStorage.getItem(key) === "true"
         ).length;
+
       } catch (error) {
-        console.warn("Unable to read stamp count", error);
+
+        console.warn(
+          "Unable to read stamp count",
+          error
+        );
+
       }
 
       stampCount.textContent =
         "STAMPS: " + count + " / " + ALL_STAMPS.length;
+
     }
 
+    // Load Touch model after opening
+
     function loadTouchModel() {
-      if (touchModelLoadStarted) return;
+
+      if (touchModelLoadStarted) {
+        return;
+      }
 
       touchModelLoadStarted = true;
+
       setDebug("Loading Touch model...");
 
       touchModel.setAttribute(
         "gltf-model",
         "url(./touch.glb)"
       );
+
     }
 
-    touchModel.addEventListener("model-loaded", () => {
-      touchModel.setAttribute("visible", true);
-      setDebug("Touch model loaded");
-    });
+    // Touch model loaded
 
-    touchModel.addEventListener("model-error", event => {
-      console.error("Touch model error", event.detail);
-      setDebug("Touch model failed to load");
-    });
+    touchModel.addEventListener(
+      "model-loaded",
+      () => {
+
+        touchModel.setAttribute(
+          "visible",
+          true
+        );
+
+        setDebug("Touch model loaded");
+
+      }
+    );
+
+    // Touch model error
+
+    touchModel.addEventListener(
+      "model-error",
+      event => {
+
+        console.error(
+          "Touch model error",
+          event.detail
+        );
+
+        setDebug("Touch model failed to load");
+
+      }
+    );
+
+    // Show collected reward
 
     function showCollectedState() {
-      closedChest.setAttribute("visible", false);
-      touchReward.setAttribute("visible", true);
+
+      // Hide chest
+      closedChest.setAttribute(
+        "visible",
+        false
+      );
+
+      // Show reward
+      touchReward.setAttribute(
+        "visible",
+        true
+      );
+
+      // Hide hold button
       holdButton.style.display = "none";
 
+      // Hide bottom status messages
+      statusText.style.display = "none";
+      debugInfo.style.display = "none";
+
+      // Keep stamp counter visible
+      stampCount.style.display = "block";
+
+      // Load Touch model
       loadTouchModel();
+
     }
 
+    // Start holding
+
     function startHold(event) {
-      if (opened || !targetVisible || holdTimer !== null) {
+
+      if (
+        opened ||
+        !targetVisible ||
+        holdTimer !== null
+      ) {
         return;
       }
 
       event.preventDefault();
 
-      statusText.textContent = "Keep holding...";
+      statusText.textContent =
+        "Keep holding...";
 
       progress.style.transition = "none";
       progress.style.width = "0%";
 
       void progress.offsetWidth;
 
-      progress.style.transition = "width 1s linear";
+      progress.style.transition =
+        "width 1s linear";
+
       progress.style.width = "100%";
 
-      holdTimer = setTimeout(collectStamp, HOLD_TIME);
+      holdTimer = setTimeout(
+        collectStamp,
+        HOLD_TIME
+      );
+
     }
 
+    // Cancel holding
+
     function cancelHold() {
+
       if (holdTimer !== null) {
         clearTimeout(holdTimer);
       }
 
       holdTimer = null;
 
-      if (opened) return;
+      if (opened) {
+        return;
+      }
 
       progress.style.transition = "none";
       progress.style.width = "0%";
 
       if (targetVisible) {
+
         statusText.textContent =
           "Hold the button for 1 second";
+
       }
+
     }
 
+    // Collect Touch stamp
+
     function collectStamp() {
-      if (opened || !targetVisible) return;
+
+      if (opened || !targetVisible) {
+        return;
+      }
 
       opened = true;
       holdTimer = null;
 
+      // Save stamp
       try {
-        localStorage.setItem(STAMP_KEY, "true");
+
+        localStorage.setItem(
+          STAMP_KEY,
+          "true"
+        );
+
       } catch (error) {
+
         setDebug("Stamp storage unavailable");
+
       }
 
+      // Replace chest with Touch model
       showCollectedState();
 
+      // Reset progress
       progress.style.transition = "none";
       progress.style.width = "0%";
 
-      statusText.textContent = "Stamp collected!";
-      stampMessage.style.display = "block";
-
+      // Update counter
       updateStampCount();
 
+      // Show stamp notification
+      stampMessage.style.display = "block";
+
       setTimeout(() => {
+
         stampMessage.style.display = "none";
+
       }, 2000);
+
     }
 
-    imageTarget.addEventListener("targetFound", () => {
-      targetVisible = true;
+    // Marker detected
 
-      if (opened) {
-        showCollectedState();
-        statusText.textContent = "Stamp already collected";
-      } else {
-        holdButton.style.display = "block";
-        statusText.textContent =
-          "Hold the button for 1 second";
+    imageTarget.addEventListener(
+      "targetFound",
+      () => {
+
+        targetVisible = true;
+
+        if (opened) {
+
+          showCollectedState();
+
+        } else {
+
+          closedChest.setAttribute(
+            "visible",
+            true
+          );
+
+          touchReward.setAttribute(
+            "visible",
+            false
+          );
+
+          holdButton.style.display = "block";
+
+          statusText.style.display = "block";
+          debugInfo.style.display = "block";
+
+          statusText.textContent =
+            "Hold the button for 1 second";
+
+          setDebug("Touch marker detected");
+
+        }
+
       }
+    );
 
-      if (!touchModelLoadStarted) {
-        setDebug("Touch marker detected");
+    // Marker lost
+
+    imageTarget.addEventListener(
+      "targetLost",
+      () => {
+
+        targetVisible = false;
+
+        cancelHold();
+
+        holdButton.style.display = "none";
+
+        if (!opened) {
+
+          statusText.textContent =
+            "Point the camera at the Touch target";
+
+        }
+
       }
-    });
+    );
 
-    imageTarget.addEventListener("targetLost", () => {
-      targetVisible = false;
-      cancelHold();
+    // Chest loading error
 
-      holdButton.style.display = "none";
+    closedChest.addEventListener(
+      "model-error",
+      event => {
 
-      statusText.textContent = opened
-        ? "Stamp already collected"
-        : "Point the camera at the Touch target";
-    });
+        console.error(
+          "Chest model error",
+          event.detail
+        );
 
-    closedChest.addEventListener("model-error", event => {
-      console.error("Chest model error", event.detail);
-      setDebug("Chest model failed to load");
-    });
+        setDebug(
+          "Chest model failed to load"
+        );
 
-    scene.addEventListener("loaded", () => {
-      setDebug("AR scene initialized");
-    });
+      }
+    );
 
-    holdButton.addEventListener("pointerdown", startHold);
-    holdButton.addEventListener("pointerup", cancelHold);
-    holdButton.addEventListener("pointercancel", cancelHold);
-    holdButton.addEventListener("pointerleave", cancelHold);
+    // AR scene initialized
 
-    holdButton.addEventListener("contextmenu", event => {
-      event.preventDefault();
-    });
+    scene.addEventListener(
+      "loaded",
+      () => {
+
+        setDebug("AR scene initialized");
+
+      }
+    );
+
+    // Button events
+
+    holdButton.addEventListener(
+      "pointerdown",
+      startHold
+    );
+
+    holdButton.addEventListener(
+      "pointerup",
+      cancelHold
+    );
+
+    holdButton.addEventListener(
+      "pointercancel",
+      cancelHold
+    );
+
+    holdButton.addEventListener(
+      "pointerleave",
+      cancelHold
+    );
+
+    holdButton.addEventListener(
+      "contextmenu",
+      event => {
+
+        event.preventDefault();
+
+      }
+    );
+
+    // Initialize
 
     updateStampCount();
+
   </script>
 
 </body>
